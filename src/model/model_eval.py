@@ -3,6 +3,8 @@ import numpy as np
 import pickle
 import json
 from sklearn.metrics import accuracy_score,precision_score,f1_score,recall_score
+from dvclive import Live
+import yaml
 
 
 
@@ -41,6 +43,11 @@ def load_model(filepath : str):
 def evaluation_model(model, X_test: pd.DataFrame, y_test : pd.Series) -> dict:
 
     try:
+        params = yaml.safe_load(open("params.yaml","r"))
+        test_size = params["data_collection"]["test_size"]
+        n_estimators = params["model_building"]["n_estimators"]
+
+        
         y_pred = model.predict(X_test)
 
         accuracy = accuracy_score(y_test,y_pred)
@@ -48,17 +55,29 @@ def evaluation_model(model, X_test: pd.DataFrame, y_test : pd.Series) -> dict:
         f1 = f1_score(y_test,y_pred)
         recall = recall_score(y_test,y_pred)
 
+        with Live(save_dvc_exp= True) as live:
+            live.log_metric("accuracy:",accuracy)
+            live.log_metric("precision:",precision)
+            live.log_metric("f1_score:",f1)
+            live.log_metric("recall_score:",recall)
+
+            live.log_param("n_estimators:",n_estimators)
+            live.log_param("test_size:",test_size)
+
         metrics_dict = {
             'accuracy': accuracy,
             'precision': precision,
             'f1_score': f1,
             'recall_score': recall
         }
+
+        
         
         return metrics_dict
     
+    
     except Exception as e:
-        raise Exception(f"Error in evaluating model {e}")
+        raise Exception(f"Error in evaluating model :{e}")
     
 def save_metrics(metrics_dict : dict, filepath : str) -> None:
     try:
@@ -81,7 +100,7 @@ def main():
         evaluation_dict = evaluation_model(model,X_test,y_test)
         save_metrics(evaluation_dict,metrics_filepath)
     except Exception as e:
-        raise Exception(f"Error in evaludating mode : {e}")
+        raise Exception(f"Error in evaluating model : {e}")
 
 if __name__ == '__main__':
     main()
